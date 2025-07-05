@@ -1,27 +1,131 @@
-# DeactivateRouteGuard
+canDeactivate Route Guard
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 14.0.2.
+When we are filling a form and suddenly you click on the back button or navigating from current page to different page then a popup appears if 'the data is not saved are you sure you want to leave this page' . canDeactivate guard is activated when we are doing something in the page and without saving you are navigating to the previous link. functional deactivate is the latest one.
 
-## Development server
+example:
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+app.routing.module.ts
 
-## Code scaffolding
+const routes: Routes = [
+  { path: '', redirectTo: '/home', pathMatch: 'full' },
+  { path: 'home', component: HomeComponent },
+  { path: 'form', component: FormComponent },
+];
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+home.component.html
 
-## Build
+<button (click)="navigateToForm()">Navigate to form</button>
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
 
-## Running unit tests
+home.component.ts
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+export class HomeComponent {
+  constructor(private router: Router) {}
+  navigateToForm() {
+    this.router.navigate(['form']);
+  }
+}
 
-## Running end-to-end tests
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+form.component.html
 
-## Further help
+<input type="text" [formControl]="username" />
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+
+form.component.ts
+
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-home',
+  standalone: false,
+  templateUrl: './home.component.html',
+  styleUrl: './home.component.css',
+})
+import { Component } from '@angular/core';
+import { FormControl, Validators } from '@angular/forms';
+
+@Component({
+  selector: 'app-form',
+  standalone: false,
+  templateUrl: './form.component.html',
+  styleUrl: './form.component.css',
+})
+export class FormComponent {
+  username = new FormControl('', Validators.required);
+}
+
+
+Here when we go to home page there is a button 'Navigate to form' which on clicking goes to form webpage. Additionally form page has a input HTML element where we enter value and when we click back button in browser it navigates back to home component web page. Thus the data inside the input element in form webpage is lost. But there will be case where user unintentionally clicks on back button without saving the information in the current page (here form component page).
+To resolve this problem when user clicks on the back button without saving the content in the current web page we will get a popup telling information like 'are you share you want to leave this page' this can be done by using deactivate route guard.
+To create deactivate function we can type the following command
+
+ng g guard formDeactive --skip-tests --functional=true
+
+use canDeactivate property in the Routes in app.routing.module.ts is given deactivate Guard name as follws
+
+eg:-
+
+  { path: 'form', component: FormComponent, canDeactivate: [formDeactiveGuard] },
+
+Here canDeactivate with formDeactiveGuard as value will be activated when we go from the formcomponent when clicked back or we go backwards. canDeactivate class should have true value from its function then only canDeactivate will be triggered, if false canDeactivate will not be triggered.
+
+Note: canActivate triggers when we go forwards. canActivate class should have true value from its class then only canActicate will be triggered, if false canActivate will not be triggered.
+
+In the form-deactivate-guard.ts file (which is the deactivate function created) , in the below code formDeactiveGuard  body we argument 'component' which here refers to FormComponent. Since, canDeactivate property in app.routing.module.ts given to FOrmComponent. 'component' contains the input formcontrolname 'username'.
+
+
+form-deactive.guard.ts
+
+
+import { FormControl } from '@angular/forms';
+import { CanDeactivateFn } from '@angular/router';
+interface CanDeactivateComponent {
+  username: FormControl;
+}
+export const formDeactiveGuard: CanDeactivateFn<CanDeactivateComponent> = (
+  component,
+  currentRoute,
+  currentState,
+  nextState
+) => {
+  console.log(component);
+  if (component && component?.username && component?.username.dirty) {
+    const confirmation = confirm(
+      'Do you want to leave this page as content will be lost'
+    );
+    if (confirmation) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  return true;
+};
+
+Note: if component?.username.dirty is done then and when we click to back button the confirmation popup will appear. Since formDeactiveGuard will be returning true.  And if we click Ok button inpopup it will be navigated to previous page that's 'home' page.
+
+The three other arguments in formDeactiveGuard are  currentRoute, currentState, nextState.
+
+The 'currentRoute' represents the route you are leaving. currentRoute is of type ActivatedRouteSnapshot 
+eg:
+
+currentRoute.params['id']   // Access route parameters
+currentRoute.data['title']  // Access static data
+
+
+
+The currentState refers to the entire router state at the time you're trying to leave. currentState is of type RouterStateSnapshot. Includes the current URL and all child route states.
+
+eg:-
+
+console.log(currentState.url); // e.g., '/user/123/edit'
+
+
+nextState refers to router state you're trying to navigate to. If nextState is null, it means you're closing the app or doing a non-router-triggered navigation. nextState is of typeRouterStateSnapshot | null
+
+console.log(nextState?.url); // e.g., '/home'
+
+
+ngOnDestroy added in form.component.ts , ngOndestroy() will be called if we click on the ok button of confirm popup.
